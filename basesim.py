@@ -8,27 +8,29 @@ from brian.compartments import *
 from brian.library.ionic_currents import *
 from brian.library.synapses import *
 
-#@network_operation
-#def current(clock):
-#    if clock.t < 1*ms:
-#        neuron.Iin_10 = 0.1*uA
-#    else:
-#        neuron.Iin_10 = 0*uA
+@network_operation
+def current(clock):
+    if 10*ms < clock.t < 200*ms:
+        neuron.Iin_10 = 100*pA
+    elif 199*ms < clock.t < 500*ms:
+        neuron.Iin_10 = 200*pA
+    else:
+        neuron.Iin_10 = 0*uA
 
 defaultclock.dt = dt = 0.1*ms
-duration = 100*ms
+duration = 2000*ms
 
 length = 1000 * um
 nseg = 50
-dx = length / nseg
-ci = 1 * uF / cm**2
+dx = length/nseg
+ci = 1 * uF/cm**2
 gij = 0.02 * usiemens
 diam = 12 * um
 radius = diam/2
 area = pi * diam * dx
 Ci = ci*area
 El = 0 * mV
-rMi = 10*Mohm*cm**2
+rMi = 10*kohm*cm**2
 rL = 330*ohm*cm
 Ri = rMi/area
 Qi = dx/(pi*radius**2)
@@ -72,7 +74,6 @@ print("Setting up synapses ...")
 synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
 print("Creating neuron group ...")
 neuron = NeuronGroup(1, model=equations)
-neuron.V_10 = 0.1*mV
 print("Creating input spikes ...")
 inspikes = SpikeGeneratorGroup(2, [(0, 20*ms)])
 #inconn0 = Connection(inspikes[0], neuron, state="Iin_"+str(synlocs[1]))
