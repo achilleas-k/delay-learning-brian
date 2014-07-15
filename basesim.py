@@ -8,29 +8,21 @@ from brian.compartments import *
 from brian.library.ionic_currents import *
 from brian.library.synapses import *
 
-@network_operation
-def current(clock):
-    if 10*ms < clock.t < 200*ms:
-        neuron.Iin_10 = 100*pA
-    elif 199*ms < clock.t < 500*ms:
-        neuron.Iin_10 = 200*pA
-    else:
-        neuron.Iin_10 = 0*uA
 
 defaultclock.dt = dt = 0.1*ms
-duration = 2000*ms
+duration = 100*ms
 
 length = 1000 * um
 nseg = 50
 dx = length/nseg
 ci = 1 * uF/cm**2
-gij = 0.02 * usiemens
+gij = 0.02 * usiemens  # WAT IS THIS
 diam = 12 * um
 radius = diam/2
 area = pi * diam * dx
 Ci = ci*area
 El = 0 * mV
-rMi = 10*kohm*cm**2
+rMi = 330*ohm*cm**2
 rL = 330*ohm*cm
 Ri = rMi/area
 Qi = dx/(pi*radius**2)
@@ -76,10 +68,8 @@ print("Creating neuron group ...")
 neuron = NeuronGroup(1, model=equations)
 print("Creating input spikes ...")
 inspikes = SpikeGeneratorGroup(2, [(0, 20*ms)])
-#inconn0 = Connection(inspikes[0], neuron, state="Iin_"+str(synlocs[1]))
-#inconn0.connect(inspikes, neuron, W=1*mV)
-#inconn6 = Connection(inspikes[1], neuron, state="vm_6")
-#inconn6.connect(inspikes, neuron, W=40*mV)
+inconn6 = Connection(inspikes[0], neuron, state="V_%i" % synlocs[1])
+inconn6.connect(inspikes, neuron, W=10*mV)
 
 print("Creating monitors ...")
 trace = []
