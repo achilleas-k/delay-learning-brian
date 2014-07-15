@@ -8,57 +8,84 @@ from brian.compartments import *
 from brian.library.ionic_currents import *
 from brian.library.synapses import *
 
+#@network_operation
+#def current(clock):
+#    if clock.t < 1*ms:
+#        neuron.Iin_10 = 0.1*uA
+#    else:
+#        neuron.Iin_10 = 0*uA
+
 defaultclock.dt = dt = 0.1*ms
 duration = 100*ms
 
 length = 1000 * um
 nseg = 50
 dx = length / nseg
-Cm = 1 * uF / cm ** 2
-gl = 0.02 * msiemens / cm ** 2
+ci = 1 * uF / cm**2
+gij = 0.02 * usiemens
 diam = 12 * um
+radius = diam/2
 area = pi * diam * dx
+Ci = ci*area
 El = 0 * mV
-Ri = 330 * ohm * cm
-ra = Ri * 4 / (pi * diam ** 2)
-tau_mem = 10*ms
+rMi = 10*Mohm*cm**2
+rL = 330*ohm*cm
+Ri = rMi/area
+Qi = dx/(pi*radius**2)
+Rij = rL*Qi
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
 
 print("Setting up cable segments ...")
-segments = {}
 somaseg = nseg-1
+equations = []
 for i in range(nseg):
-    segments[i] = MembraneEquation(Cm * area)
-    segments[i] += leak_current(gl * area, El)
+    equations += Equations("dV/dt = (Iin-V/Ri+coupling)/Ci : volt",
+                           V="V_%i" % i,
+                           Iin="Iin_%i" % i,
+                           coupling="coupling_%i" % i,
+                           Ri=Ri,
+                           Ci=Ci)
+    equations += Equations("Iin : amp", Iin="Iin_%i" % i)
+    if (i > 0) & (i < nseg-1):
+        equations += Equations("coupling = ((V_pre-V_cur) + (V_post-V_cur))/Rij : amp",
+                               coupling="coupling_%i" % i,
+                               V_pre="V_%i" % (i-1),
+                               V_post="V_%i" % (i+1),
+                               V_cur="V_%i" % (i),
+                               Rij=Rij)
+    elif (i == 0):
+        equations += Equations("coupling = (V_post-V_cur)/Rij : amp",
+                               coupling="coupling_%i" % i,
+                               V_post="V_%i" % (i+1),
+                               V_cur="V_%i" % (i),
+                               Rij=Rij)
+    elif (i == nseg-1):
+        equations += Equations("coupling = (V_pre-V_cur)/Rij : amp",
+                               coupling="coupling_%i" % i,
+                               V_pre="V_%i" % (i-1),
+                               V_cur="V_%i" % (i),
+                               Rij=Rij)
 
-#segments[0] += Current("I : amp")
 print("Setting up synapses ...")
 synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
-for sl in synlocs:
-    segments[i] += exp_synapse(
-        input='Iin', tau=10*ms, unit=amp, output='__membrane_Im')
-cable = Compartments(segments)
-for i in range(1, nseg):
-    cable.connect(i-1, i, ra*dx)
-
 print("Creating neuron group ...")
-lastmem = "vm_"+str(somaseg)
-neuron = NeuronGroup(1, model=cable)
-#neuron.V_0=10*mV
-#neuron.I_0 = .02 * nA
+neuron = NeuronGroup(1, model=equations)
+neuron.V_10 = 0.1*mV
 print("Creating input spikes ...")
 inspikes = SpikeGeneratorGroup(2, [(0, 20*ms)])
-inconn0 = Connection(inspikes[0], neuron, state="Iin_"+str(synlocs[1]))
-inconn0.connect(inspikes, neuron, W=1*mV)
+#inconn0 = Connection(inspikes[0], neuron, state="Iin_"+str(synlocs[1]))
+#inconn0.connect(inspikes, neuron, W=1*mV)
 #inconn6 = Connection(inspikes[1], neuron, state="vm_6")
 #inconn6.connect(inspikes, neuron, W=40*mV)
 
 print("Creating monitors ...")
 trace = []
+coup = []
 for i in synlocs+[nseg-1]:
-    trace.append(StateMonitor(neuron, 'vm_' + str(i), record=True))
+    trace.append(StateMonitor(neuron, "V_%i" % i, record=True))
+    coup.append(StateMonitor(neuron, "coupling_%i" % i, record=True))
 spikemon = SpikeMonitor(neuron)
 print("Running simulation for %s ..." % (duration))
 run(duration)
