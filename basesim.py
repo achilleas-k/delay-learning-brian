@@ -12,17 +12,17 @@ from brian.library.synapses import *
 defaultclock.dt = dt = 0.1*ms
 duration = 100*ms
 
-length = 1000 * um
+length = 1000*um
 nseg = 50
 dx = length/nseg
-ci = 1 * uF/cm**2
-gij = 0.02 * usiemens  # WAT IS THIS
-diam = 12 * um
+ci = 1*uF/cm**2
+gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
+diam = 1*um
 radius = diam/2
 area = pi * diam * dx
 Ci = ci*area
-El = 0 * mV
-rMi = 330*ohm*cm**2
+El = 0*mV
+rMi = 10*kohm*cm**2
 rL = 330*ohm*cm
 Ri = rMi/area
 Qi = dx/(pi*radius**2)
@@ -30,37 +30,47 @@ Rij = rL*Qi
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
+print("Time constant = %s" % (Ri*Ci))
 
 print("Setting up cable segments ...")
 somaseg = nseg-1
 equations = []
 for i in range(nseg):
-    equations += Equations("dV/dt = (Iin-V/Ri+coupling)/Ci : volt",
-                           V="V_%i" % i,
-                           Iin="Iin_%i" % i,
-                           coupling="coupling_%i" % i,
-                           Ri=Ri,
-                           Ci=Ci)
+    equations += Equations(
+        "dV/dt = (Iin-V/Ri+coupling)/Ci : volt",
+        V="V_%i" % i,
+        Iin="Iin_%i" % i,
+        coupling="coupling_%i" % i,
+        Ri=Ri,
+        Ci=Ci
+    )
     equations += Equations("Iin : amp", Iin="Iin_%i" % i)
+    # TODO: These ifs can be simplified
     if (i > 0) & (i < nseg-1):
-        equations += Equations("coupling = ((V_pre-V_cur) + (V_post-V_cur))/Rij : amp",
-                               coupling="coupling_%i" % i,
-                               V_pre="V_%i" % (i-1),
-                               V_post="V_%i" % (i+1),
-                               V_cur="V_%i" % (i),
-                               Rij=Rij)
+        equations += Equations(
+            "coupling = ((V_pre-V_cur) + (V_post-V_cur))/Rij : amp",
+            coupling="coupling_%i" % i,
+            V_pre="V_%i" % (i-1),
+            V_post="V_%i" % (i+1),
+            V_cur="V_%i" % (i),
+            Rij=Rij
+        )
     elif (i == 0):
-        equations += Equations("coupling = (V_post-V_cur)/Rij : amp",
-                               coupling="coupling_%i" % i,
-                               V_post="V_%i" % (i+1),
-                               V_cur="V_%i" % (i),
-                               Rij=Rij)
+        equations += Equations(
+            "coupling = (V_post-V_cur)/Rij : amp",
+            coupling="coupling_%i" % i,
+            V_post="V_%i" % (i+1),
+            V_cur="V_%i" % (i),
+            Rij=Rij
+        )
     elif (i == nseg-1):
-        equations += Equations("coupling = (V_pre-V_cur)/Rij : amp",
-                               coupling="coupling_%i" % i,
-                               V_pre="V_%i" % (i-1),
-                               V_cur="V_%i" % (i),
-                               Rij=Rij)
+        equations += Equations(
+            "coupling = (V_pre-V_cur)/Rij : amp",
+            coupling="coupling_%i" % i,
+            V_pre="V_%i" % (i-1),
+            V_cur="V_%i" % (i),
+            Rij=Rij
+        )
 
 print("Setting up synapses ...")
 synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
@@ -69,7 +79,7 @@ neuron = NeuronGroup(1, model=equations)
 print("Creating input spikes ...")
 inspikes = SpikeGeneratorGroup(2, [(0, 20*ms)])
 inconn6 = Connection(inspikes[0], neuron, state="V_%i" % synlocs[1])
-inconn6.connect(inspikes, neuron, W=10*mV)
+inconn6.connect(inspikes, neuron, W=30*mV)
 
 print("Creating monitors ...")
 trace = []
