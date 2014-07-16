@@ -45,32 +45,18 @@ for i in range(nseg):
         Ci=Ci
     )
     equations += Equations("Iin : amp", Iin="Iin_%i" % i)
-    # TODO: These ifs can be simplified
-    if (i > 0) & (i < nseg-1):
-        equations += Equations(
-            "coupling = ((V_pre-V_cur) + (V_post-V_cur))/Rij : amp",
-            coupling="coupling_%i" % i,
-            V_pre="V_%i" % (i-1),
-            V_post="V_%i" % (i+1),
-            V_cur="V_%i" % (i),
-            Rij=Rij
-        )
-    elif (i == 0):
-        equations += Equations(
-            "coupling = (V_post-V_cur)/Rij : amp",
-            coupling="coupling_%i" % i,
-            V_post="V_%i" % (i+1),
-            V_cur="V_%i" % (i),
-            Rij=Rij
-        )
-    elif (i == nseg-1):
-        equations += Equations(
-            "coupling = (V_pre-V_cur)/Rij : amp",
-            coupling="coupling_%i" % i,
-            V_pre="V_%i" % (i-1),
-            V_cur="V_%i" % (i),
-            Rij=Rij
-        )
+    coupling_eqn = []
+    if (i > 0):
+        coupling_eqn.append("(V_pre-V_cur)/Rij")
+    if (i < nseg-1):
+        coupling_eqn.append("(V_post-V_cur)/Rij")
+    coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp"
+    equations += Equations(coupling_eqn,
+                           coupling="coupling_%i" % i,
+                           V_pre="V_%i" % (i-1),
+                           V_post="V_%i" % (i+1),
+                           V_cur="V_%i" % (i),
+                           Rij=Rij)
 
 print("Setting up synapses ...")
 synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
