@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-'''
-Dendrite with 100 compartments
-'''
 from __future__ import print_function
 from brian import *
 from brian.compartments import *
@@ -10,23 +7,25 @@ from brian.library.synapses import *
 
 
 defaultclock.dt = dt = 0.1*ms
-duration = 100*ms
+duration = 300*ms
 
 length = 1000*um
 nseg = 50
-dx = length/nseg
+seg_length = length/nseg
 ci = 1*uF/cm**2
 gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
-diam = 1*um
+diam = 2*um
 radius = diam/2
-area = pi * diam * dx
+area = pi*diam*seg_length
 Ci = ci*area
-El = 0*mV
-rMi = 10*kohm*cm**2
+e_leak = -70*mV
+rMi = 1*Mohm*cm**2
 rL = 330*ohm*cm
 Ri = rMi/area
-Qi = dx/(pi*radius**2)
+Qi = seg_length/(pi*radius**2)
 Rij = rL*Qi
+g_pas = 0.00004*siemens/cm**2*area
+e_pas = -70*mV
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
@@ -37,53 +36,87 @@ somaseg = nseg-1
 equations = []
 for i in range(nseg):
     equations += Equations(
-        "dV/dt = (Iin-V/Ri+coupling)/Ci : volt",
+        "dV/dt = (Iin+coupling+leak+pas)/Ci : volt",
         V="V_%i" % i,
         Iin="Iin_%i" % i,
         coupling="coupling_%i" % i,
-        Ri=Ri,
-        Ci=Ci
+        Ci=Ci,
+        leak="leak_%i" % i,
+        pas="pas_%i" % i,
     )
+    leak_channel_eqn = "leak = (e_leak-V)/Ri : amp"
+    equations += Equations(leak_channel_eqn,
+                           leak="leak_%i" % i,
+                           V="V_%i" % i,
+                           Ri=Ri,
+                           e_leak=e_leak)
+    passive_channel_eqn = "pas = g_pas*(e_pas-V) : amp"
+    equations += Equations(passive_channel_eqn,
+                           pas="pas_%i" % i,
+                           V="V_%i" % i,
+                           g_pas=g_pas,
+                           e_pas=e_pas)
     equations += Equations("Iin : amp", Iin="Iin_%i" % i)
     coupling_eqn = []
     if (i > 0):
         coupling_eqn.append("(V_pre-V_cur)/Rij")
     if (i < nseg-1):
-        coupling_eqn.append("(V_post-V_cur)/Rij")
+        coupling_eqn.append("(V_next-V_cur)/Rij")
     coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp"
     equations += Equations(coupling_eqn,
                            coupling="coupling_%i" % i,
                            V_pre="V_%i" % (i-1),
-                           V_post="V_%i" % (i+1),
+                           V_next="V_%i" % (i+1),
                            V_cur="V_%i" % (i),
                            Rij=Rij)
+equations += Equations(
+    "dV/dt = (coupling+leak)/Ci : volt",
+    V="V_soma",
+    coupling="coupling_soma",
+    Ci=Ci,
+    leak="leak_soma"
+)
+equations += Equations("coupling = (V_pre-V_cur)/Rij : amp",
+                       coupling="coupling_soma",
+                       V_pre="V_%i" % (nseg-1),
+                       V_cur="V_soma",
+                       Rij=Rij)
+equations += Equations("leak = (e_leak-V)/Ri : amp",
+                       leak="leak_soma",
+                       V="V_soma",
+                       Ri=Ri,
+                       e_leak=e_leak)
 
 print("Setting up synapses ...")
 synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
 print("Creating neuron group ...")
 neuron = NeuronGroup(1, model=equations)
+for i in range(nseg):
+    setattr(neuron, "V_%i" % i, e_leak)
+setattr(neuron, "V_soma", e_leak)
 print("Creating input spikes ...")
-inspikes = SpikeGeneratorGroup(2, [(0, 20*ms)])
+inspikes = SpikeGeneratorGroup(2, [(0, 100*ms)])
 inconn6 = Connection(inspikes[0], neuron, state="V_%i" % synlocs[1])
 inconn6.connect(inspikes, neuron, W=30*mV)
 
 print("Creating monitors ...")
-trace = []
-coup = []
+trace = {}
 for i in synlocs+[nseg-1]:
-    trace.append(StateMonitor(neuron, "V_%i" % i, record=True))
-    coup.append(StateMonitor(neuron, "coupling_%i" % i, record=True))
+    trace[i] = StateMonitor(neuron, "V_%i" % i, record=True)
+trace["soma"] = StateMonitor(neuron, "V_soma", record=True)
 spikemon = SpikeMonitor(neuron)
 print("Running simulation for %s ..." % (duration))
 run(duration)
 
-for idx, sl in enumerate(synlocs):
-    print("Segment %i peaks at %f ms with %f mV" % (
-        sl, argmax(trace[idx][0])*dt*1000, max(trace[idx][0])*1000))
-trace[-1].insert_spikes(spikemon, 40*mV)
+for sli in synlocs:
+    print("Segment %i peaked at %f ms with %f mV" % (
+        sli, argmax(trace[sli][0])*dt*1000, (max(trace[sli][0])-float(e_leak))*1000))
+print("Soma peaked at %f ms with %f mV" % (
+    argmax(trace["soma"][0])*dt*1000, (max(trace["soma"][0])-float(e_leak))*1000))
+#trace[-1].insert_spikes(spikemon, 40*mV)
 
-for idx, sl in enumerate(synlocs):
-    plot(trace[idx].times*1000, trace[idx][0], label="%i" % sl)
+for sli in(synlocs):
+    plot(trace[sli].times*1000, trace[sli][0], label="%i" % sli)
 ylabel("voltage (V)")
 legend(loc="best")
-show()
+#show()
