@@ -69,6 +69,7 @@ for i in range(nseg):
                            V_next="V_%i" % (i+1),
                            V_cur="V_%i" % (i),
                            Rij=Rij)
+    # TODO: Insert Na
 equations += Equations(
     "dV/dt = (coupling+leak)/Ci : volt",
     V="V_soma",
