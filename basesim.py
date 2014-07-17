@@ -9,23 +9,23 @@ from brian.library.synapses import *
 defaultclock.dt = dt = 0.1*ms
 duration = 300*ms
 
-length = 1000*um
-nseg = 50
-seg_length = length/nseg
-ci = 1*uF/cm**2
+length = 1000*um  # total length
+nseg = 50  # number of segments (dendrite)
+seg_length = length/nseg  # segment length
+ci = 1*uF/cm**2  # specific membrane capacitance
 gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
-diam = 2*um
-radius = diam/2
-area = pi*diam*seg_length
-Ci = ci*area
-e_leak = -70*mV
-rMi = 12*kohm*cm**2
-rL = 200*ohm*cm
-Ri = rMi/area
-Qi = seg_length/(pi*radius**2)
-Rij = rL*Qi
-g_pas = 0.00004*siemens/cm**2*area
-e_pas = -70*mV
+diam = 2*um  # diameter
+radius = diam/2  # radius
+area = pi*diam*seg_length  # segment surface area
+Ci = ci*area  # membrane capacitance
+e_leak = -70*mV  # membrane leak potential
+rMi = 12*kohm*cm**2  # specific membrane resistance
+rL = 200*ohm*cm  # intracellular/longitudinal resistivity
+Ri = rMi/area  # membrane resistance
+Qi = seg_length/(pi*radius**2)  # axial resistance factor
+Rij = rL*Qi  # coupling resistance
+g_pas = 0.00004*siemens/cm**2*area  # passive channel conductance
+e_pas = -70*mV  # passive channel reversal potential
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
