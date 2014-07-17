@@ -19,8 +19,8 @@ radius = diam/2
 area = pi*diam*seg_length
 Ci = ci*area
 e_leak = -70*mV
-rMi = 1*Mohm*cm**2
-rL = 330*ohm*cm
+rMi = 12*kohm*cm**2
+rL = 200*ohm*cm
 Ri = rMi/area
 Qi = seg_length/(pi*radius**2)
 Rij = rL*Qi
@@ -62,6 +62,8 @@ for i in range(nseg):
         coupling_eqn.append("(V_pre-V_cur)/Rij")
     if (i < nseg-1):
         coupling_eqn.append("(V_next-V_cur)/Rij")
+    if (i == nseg-1):
+        coupling_eqn.append("(V_soma-V_cur)/Rij")
     coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp"
     equations += Equations(coupling_eqn,
                            coupling="coupling_%i" % i,
@@ -69,6 +71,7 @@ for i in range(nseg):
                            V_next="V_%i" % (i+1),
                            V_cur="V_%i" % (i),
                            Rij=Rij)
+
     # TODO: Insert Na
 equations += Equations(
     "dV/dt = (coupling+leak)/Ci : volt",
@@ -114,10 +117,19 @@ for sli in synlocs:
         sli, argmax(trace[sli][0])*dt*1000, (max(trace[sli][0])-float(e_leak))*1000))
 print("Soma peaked at %f ms with %f mV" % (
     argmax(trace["soma"][0])*dt*1000, (max(trace["soma"][0])-float(e_leak))*1000))
-#trace[-1].insert_spikes(spikemon, 40*mV)
 
+figure()
+subplot(211)
 for sli in(synlocs):
-    plot(trace[sli].times*1000, trace[sli][0], label="%i" % sli)
-ylabel("voltage (V)")
+    plot(trace[sli].times*1000, trace[sli][0]*1000, label="%i" % sli)
+axis([0*second, duration*1000, -80, 0])
+ylabel("voltage (mV)")
+title("Dendrites")
 legend(loc="best")
+subplot(212)
+plot(trace["soma"].times*1000, trace["soma"][0]*1000)
+axis([0*second, duration*1000, -80, 0])
+ylabel("voltage (mV)")
+xlabel("time (ms)")
+title("Soma")
 #show()
