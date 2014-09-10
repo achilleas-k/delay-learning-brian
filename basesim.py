@@ -26,6 +26,8 @@ Qi = seg_length/(pi*radius**2)  # axial resistance factor
 Rij = rL*Qi  # coupling resistance
 g_pas = 0.00004*siemens/cm**2*area  # passive channel conductance
 e_pas = -70*mV  # passive channel reversal potential
+g_Na_P = 0.12*siemens/cm**2*area  # persistent sodium conductance
+e_Na = 120*mV  # persistent sodium reversal potential
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
@@ -36,27 +38,53 @@ somaseg = nseg-1
 equations = []
 for i in range(nseg):
     equations += Equations(
-        "dV/dt = (Iin+coupling+leak+pas)/Ci : volt",
+        "dV/dt = (Iin+coupling+leak+pas+I_Na_P)/Ci : volt",
         V="V_%i" % i,
         Iin="Iin_%i" % i,
         coupling="coupling_%i" % i,
         Ci=Ci,
         leak="leak_%i" % i,
         pas="pas_%i" % i,
+        I_Na_P="I_Na_P_%i" % i,
     )
+    # leak channel
     leak_channel_eqn = "leak = (e_leak-V)/Ri : amp"
     equations += Equations(leak_channel_eqn,
                            leak="leak_%i" % i,
                            V="V_%i" % i,
                            Ri=Ri,
                            e_leak=e_leak)
+    # passive channel
     passive_channel_eqn = "pas = g_pas*(e_pas-V) : amp"
     equations += Equations(passive_channel_eqn,
                            pas="pas_%i" % i,
                            V="V_%i" % i,
                            g_pas=g_pas,
                            e_pas=e_pas)
+    # external current
     equations += Equations("Iin : amp", Iin="Iin_%i" % i)
+    # persistent sodium (I_Na_P)
+    # TODO: FIX ME! See my_hh.py
+    persistent_sodium_channel_eqn = "I_Na_P = g_Na_P*m*(e_Na-V) : amp"
+    equations += Equations(persistent_sodium_channel_eqn,
+                           I_Na_P="I_Na_P_%i" % i,
+                           m="m_%i" % i,
+                           V="V_%i" % i,
+                           g_Na_P=g_Na_P,
+                           e_Na=e_Na)
+    equations += Equations("dm/dt = a_m*(1-m)-b_m*m : 1",
+                           dm="dm_%i" % i,
+                           m="m_%i" % i,
+                           a_m="a_m_%i" % i,
+                           b_m="b_m_%i" % i)
+    equations += Equations("a_m = (2.5*mV-0.1*V)/(exp(2.5-0.1*V/mV)-1)/mV/ms : 1/second",
+                           a_m="a_m_%i" % i,
+                           V="V_%i" % i)
+    equations += Equations("b_m = 4*exp(V/18.0/mV)/ms : 1/second",
+                           b_m="b_m_%i" % i,
+                           V="V_%i" % i)
+    # coupling equations
+
     coupling_eqn = []
     if (i > 0):
         coupling_eqn.append("(V_pre-V_cur)/Rij")
@@ -72,7 +100,6 @@ for i in range(nseg):
                            V_cur="V_%i" % (i),
                            Rij=Rij)
 
-    # TODO: Insert Na
 equations += Equations(
     "dV/dt = (coupling+leak)/Ci : volt",
     V="V_soma",
@@ -92,7 +119,7 @@ equations += Equations("leak = (e_leak-V)/Ri : amp",
                        e_leak=e_leak)
 
 print("Setting up synapses ...")
-synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.9]]
+synlocs = [int(nseg*rel) for rel in [0.1, 0.2, 0.3, 0.6]]
 print("Creating neuron group ...")
 neuron = NeuronGroup(1, model=equations)
 for i in range(nseg):
