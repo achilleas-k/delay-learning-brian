@@ -10,28 +10,30 @@ defaultclock.dt = dt = 0.1*ms
 duration = 300*ms
 
 length = 1000*um  # total length
-nseg = 10  # number of segments (dendrite)
+nseg = 50  # number of segments (dendrite)
 seg_length = length/nseg  # segment length
-ci = 1*uF/cm**2  # specific membrane capacitance
+ci = 1*uF#/cm**2  # specific membrane capacitance
 gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
 diam = 2*um  # diameter
 radius = diam/2  # radius
 #area = pi*diam*seg_length  # segment surface area
 area = pi*diam*length
-Ci = ci*area  # membrane capacitance
+Ci = ci#*area  # membrane capacitance
 e_leak = -70*mV  # membrane leak potential
-rMi = 12*kohm*cm**2  # specific membrane resistance
-rL = 200*ohm*cm  # intracellular/longitudinal resistivity
-Ri = rMi/area  # membrane resistance
+rMi = 12*kohm#*cm**2  # specific membrane resistance
+rL = 200*ohm#*cm  # intracellular/longitudinal resistivity
+Ri = rMi#/area  # membrane resistance
 Qi = seg_length/(pi*radius**2)  # axial resistance factor
-Rij = rL*Qi  # coupling resistance
-g_pas = 0.00004*siemens/cm**2*area  # passive channel conductance
+Rij = rL#*Qi  # coupling resistance
+g_pas = 0.00004*siemens#/cm**2*area  # passive channel conductance
 e_pas = -70*mV  # passive channel reversal potential
-g_Na = 35*msiemens/cm**2*area  # sodium conductance
+g_Na = 35*msiemens#/cm**2*area  # sodium conductance
 e_Na = 55*mV  # sodium reversal potential
+g_K = 9*msiemens  # potassium conductance
+e_K = -90*mV  # potansium reversal potential
 e_exc = 0*mV  # excitatory reversal potential
 tau_exc = 15*ms  # excitatory conductance time constant
-w_exc = 80*nS  # excitatory weight (conductance change)
+w_exc = 80*uS  # excitatory weight (conductance change)
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
@@ -51,6 +53,7 @@ for i in range(nseg):
         pas="pas_%i" % i,
         Na="Na_%i" % i,
         excIn="excIn_%i" % i,
+        K="K_%i" % i,
     )
     # leak channel
     leak_channel_eqn = "leak = (e_leak-V)/Ri : amp"
@@ -110,10 +113,31 @@ for i in range(nseg):
     equations += Equations("beta_h = 1.0/(exp(-0.1/mV*(V+28*mV))+1)/ms : Hz",
                            beta_h="beta_h_%i" % i,
                            V="V_%i" % i)
+    # potassium (K)
+    potassium_channel_eqn = "K = g_K*n**4*(e_K-V) : amp"
+    equations += Equations(potassium_channel_eqn,
+                           K="K_%i" % i,
+                           n="n_%i" % i,
+                           e_K=e_K,
+                           g_K=g_K,
+                           V="V_%i" % i)
+    equations += Equations("dn/dt = 5*(alpha_n*(1-n)-beta_n*n) : 1",
+                           dn="dn_%i" % i,
+                           n="n_%i" % i,
+                           alpha_n="alpha_n_%i" % i,
+                           beta_n="beta_n_%i" % i)
+    equations += Equations("alpha_n = -0.01/mV*(V+34*mV)/(exp(-0.1/mV*(V+34*mV))-1)/ms : Hz",
+                           alpha_n="alpha_n_%i" % i,
+                           V="V_%i" % i)
+    equations += Equations("beta_n = 0.125*exp(-(V+44*mV)/(80*mV))/ms : Hz",
+                           beta_n="beta_n_%i" % i,
+                           V="V_%i" % i)
+
+
     # coupling equations
     coupling_eqn = []
-    #if (i > 0):
-    #    coupling_eqn.append("(V_pre-V_cur)/Rij")
+    if (i > 0):
+        coupling_eqn.append("(V_pre-V_cur)/Rij")
     #if (i < nseg-1):
     #    coupling_eqn.append("(V_next-V_cur)/Rij")
     #if (i == nseg-1):
@@ -178,13 +202,13 @@ figure()
 subplot(211)
 for sli in(synlocs):
     plot(trace[sli].times*1000, trace[sli][0]*1000, label="%i" % sli)
-axis([0*second, duration*1000, -80, 40])
+#axis([0*second, duration*1000, -80, 40])
 ylabel("voltage (mV)")
 title("Dendrites")
 legend(loc="best")
 subplot(212)
 plot(trace["soma"].times*1000, trace["soma"][0]*1000)
-axis([0*second, duration*1000, -80, 0])
+#axis([0*second, duration*1000, -80, 0])
 ylabel("voltage (mV)")
 xlabel("time (ms)")
 title("Soma")
