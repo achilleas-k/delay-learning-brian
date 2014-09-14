@@ -10,7 +10,7 @@ defaultclock.dt = dt = 0.1*ms
 duration = 300*ms
 
 length = 1000*um  # total length
-nseg = 50  # number of segments (dendrite)
+nseg = 10  # number of segments (dendrite)
 seg_length = length/nseg  # segment length
 ci = 1*uF/cm**2  # specific membrane capacitance
 gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
