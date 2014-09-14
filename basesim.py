@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from __future__ import print_function
 from brian import *
 from brian.compartments import *
@@ -10,7 +9,7 @@ defaultclock.dt = dt = 0.1*ms
 duration = 300*ms
 
 length = 1000*um  # total length
-nseg = 50  # number of segments (dendrite)
+nseg = 10  # number of segments (dendrite)
 seg_length = length/nseg  # segment length
 ci = 1*uF/cm**2  # specific membrane capacitance
 gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
@@ -18,21 +17,22 @@ diam = 2*um  # diameter
 radius = diam/2  # radius
 area = pi*diam*seg_length  # segment surface area
 Ci = ci*area  # membrane capacitance
-e_leak = -70*mV  # membrane leak potential
-rMi = 12*kohm*cm**2  # specific membrane resistance
+rMi = 0.1*kohm*cm**2  # specific membrane resistance
 rL = 200*ohm*cm  # intracellular/longitudinal resistivity
 Ri = rMi/area  # membrane resistance
 Qi = seg_length/(pi*radius**2)  # axial resistance factor
-Rij = rL*Qi  # coupling resistance
-g_pas = 0.00004*siemens/cm**2*area  # passive channel conductance
+Rij = rMi*Qi*length  # coupling resistance
+g_pas = 0.04*msiemens/cm**2  # passive channel conductance
 e_pas = -70*mV  # passive channel reversal potential
-g_Na = 35*msiemens/cm**2*area  # sodium conductance
-e_Na = 55*mV  # sodium reversal potential
-g_K = 9*msiemens  # potassium conductance
-e_K = -90*mV  # potansium reversal potential
+e_leak = -70*mV  # membrane leak potential
+g_leak = 0.3*msiemens/cm**2
+g_Na = 1200*msiemens/cm**2  # sodium conductance
+e_Na = 115*mV  # sodium reversal potential
+g_K = 36*msiemens/cm**2  # potassium conductance
+e_K = -12*mV  # potassium reversal potential
 e_exc = 0*mV  # excitatory reversal potential
 tau_exc = 15*ms  # excitatory conductance time constant
-w_exc = 80*uS  # excitatory weight (conductance change)
+w_exc = 80*uS/cm**2  # excitatory weight (conductance change)
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
@@ -43,11 +43,12 @@ somaseg = nseg-1
 equations = []
 for i in range(nseg):
     equations += Equations(
-        "dV/dt = (Iin+coupling+leak+pas+Na+K+excIn)/Ci : volt",
+        "dV/dt = (Iin+coupling+leak+pas+Na+K+excIn)/ci : volt",
         V="V_%i" % i,
         Iin="Iin_%i" % i,
         coupling="coupling_%i" % i,
         Ci=Ci,
+        ci=ci,
         leak="leak_%i" % i,
         pas="pas_%i" % i,
         Na="Na_%i" % i,
@@ -55,14 +56,15 @@ for i in range(nseg):
         K="K_%i" % i,
     )
     # leak channel
-    leak_channel_eqn = "leak = (e_leak-V)/Ri : amp"
+    leak_channel_eqn = "leak = g_leak*(e_leak-V) : amp/metre**2"
     equations += Equations(leak_channel_eqn,
                            leak="leak_%i" % i,
                            V="V_%i" % i,
                            Ri=Ri,
+                           g_leak=g_leak,
                            e_leak=e_leak)
     # passive channel
-    passive_channel_eqn = "pas = g_pas*(e_pas-V) : amp"
+    passive_channel_eqn = "pas = g_pas*(e_pas-V) : amp/metre**2"
     equations += Equations(passive_channel_eqn,
                            pas="pas_%i" % i,
                            V="V_%i" % i,
@@ -71,19 +73,19 @@ for i in range(nseg):
     # external current
     equations += Equations("Iin : amp", Iin="Iin_%i" % i)
     # excitatory inputs (synapses)
-    excitatory_equation = "excIn = g_exc*(e_exc-V) : amp"
+    excitatory_equation = "excIn = g_exc*(e_exc-V) : amp/metre**2"
     equations += Equations(excitatory_equation,
                            excIn="excIn_%i" % i,
                            V="V_%i" % i,
                            g_exc="g_exc_%i" % i,
                            e_exc=e_exc)
-    exc_conductance_equation = "dg_exc/dt = -g_exc*(1./tau_exc) : siemens"
+    exc_conductance_equation = "dg_exc/dt = -g_exc*(1./tau_exc) : siemens/cm**2"
     equations += Equations(exc_conductance_equation,
                            dg_exc="dg_exc_%i" % i,
                            g_exc="g_exc_%i" % i,
                            tau_exc=tau_exc)
     # sodium (Na)
-    sodium_channel_eqn = "Na = g_Na*m**3*h*(e_Na-V) : amp"
+    sodium_channel_eqn = "Na = g_Na*m**3*h*(e_Na-V) : amp/metre**2"
     equations += Equations(sodium_channel_eqn,
                            Na="Na_%i" % i,
                            m="m_%i" % i,
@@ -113,7 +115,7 @@ for i in range(nseg):
                            beta_h="beta_h_%i" % i,
                            V="V_%i" % i)
     # potassium (K)
-    potassium_channel_eqn = "K = g_K*n**4*(e_K-V) : amp"
+    potassium_channel_eqn = "K = g_K*n**4*(e_K-V) : amp/metre**2"
     equations += Equations(potassium_channel_eqn,
                            K="K_%i" % i,
                            n="n_%i" % i,
@@ -137,14 +139,14 @@ for i in range(nseg):
     coupling_eqn = []
     if (i > 0):
         coupling_eqn.append("(V_pre-V_cur)/Rij")
-    #if (i < nseg-1):
-    #    coupling_eqn.append("(V_next-V_cur)/Rij")
-    #if (i == nseg-1):
-    #    coupling_eqn.append("(V_soma-V_cur)/Rij")
+    if (i < nseg-1):
+        coupling_eqn.append("(V_next-V_cur)/Rij")
+    if (i == nseg-1):
+        coupling_eqn.append("(V_soma-V_cur)/Rij")
     if coupling_eqn:
-        coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp"
+        coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp/metre**2"
     else:
-        coupling_eqn = "coupling : amp"
+        coupling_eqn = "coupling : amp/metre**2"
     equations += Equations(coupling_eqn,
                            coupling="coupling_%i" % i,
                            V_pre="V_%i" % (i-1),
@@ -153,21 +155,23 @@ for i in range(nseg):
                            Rij=Rij)
 
 equations += Equations(
-    "dV/dt = (coupling+leak)/Ci : volt",
+    "dV/dt = (coupling+leak)/ci : volt",
     V="V_soma",
     coupling="coupling_soma",
     Ci=Ci,
+    ci=ci,
     leak="leak_soma"
 )
-equations += Equations("coupling = (V_pre-V_cur)/Rij : amp",
+equations += Equations("coupling = (V_pre-V_cur)/Rij : amp/metre**2",
                        coupling="coupling_soma",
                        V_pre="V_%i" % (nseg-1),
                        V_cur="V_soma",
                        Rij=Rij)
-equations += Equations("leak = (e_leak-V)/Ri : amp",
+equations += Equations("leak = g_leak*(e_leak-V) : amp/metre**2",
                        leak="leak_soma",
                        V="V_soma",
                        Ri=Ri,
+                       g_leak=g_leak,
                        e_leak=e_leak)
 
 print("Setting up synapses ...")
