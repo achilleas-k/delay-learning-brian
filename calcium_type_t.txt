@@ -1,0 +1,17 @@
+Equations for type t calcium from Neuron tutorial (part D)
+
+g_Ca = 0.002*siemens/cm**2
+E_Ca = 126.1*mV
+
+I_Ca = g_Ca*r**3*s*(V-E_Ca)
+
+    ralpha = 1.0/(1.7+exp(-(v+28.2)/13.5))
+    rbeta  = exp(-(v+63.0)/7.8)/(exp(-(v+28.8)/13.1)+1.7)
+
+    salpha = exp(-(v+160.3)/17.8)
+    sbeta  = (sqrt(0.25+exp((v+83.5)/6.3))-0.5) * 
+                     (exp(-(v+160.3)/17.8))
+
+    bd     = sqrt(0.25+exp((v+83.5)/6.3))
+    dalpha = (1.0+exp((v+37.4)/30.0))/(240.0*(0.5+bd))
+    dbeta  = (bd-0.5)*dalpha
