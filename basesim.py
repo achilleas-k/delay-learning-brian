@@ -17,13 +17,14 @@ gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
 diam = 2*um  # diameter
 radius = diam/2  # radius
 area = pi*diam*seg_length  # segment surface area
-Ci = ci*area  # membrane capacitance
+Ci = 1*uF  #ci*area  # membrane capacitance
 e_leak = -70*mV  # membrane leak potential
 rMi = 12*kohm*cm**2  # specific membrane resistance
 rL = 200*ohm*cm  # intracellular/longitudinal resistivity
-Ri = rMi/area  # membrane resistance
+Ri = 12*kohm  #rMi/area  # membrane resistance
 Qi = seg_length/(pi*radius**2)  # axial resistance factor
 Rij = rL*Qi  # coupling resistance
+Rij = Ri
 g_pas = 0.00004*siemens/cm**2*area  # passive channel conductance
 e_pas = -70*mV  # passive channel reversal potential
 g_Na = 35*msiemens/cm**2*area  # sodium conductance
@@ -137,10 +138,10 @@ for i in range(nseg):
     coupling_eqn = []
     if (i > 0):
         coupling_eqn.append("(V_pre-V_cur)/Rij")
-    #if (i < nseg-1):
-    #    coupling_eqn.append("(V_next-V_cur)/Rij")
-    #if (i == nseg-1):
-    #    coupling_eqn.append("(V_soma-V_cur)/Rij")
+    if (i < nseg-1):
+        coupling_eqn.append("(V_next-V_cur)/Rij")
+    if (i == nseg-1):
+        coupling_eqn.append("(V_soma-V_cur)/Rij")
     if coupling_eqn:
         coupling_eqn = "coupling = "+"+".join(coupling_eqn)+" : amp"
     else:
@@ -179,7 +180,7 @@ for i in range(nseg):
 setattr(neuron, "V_soma", e_leak)
 print("Creating input spikes ...")
 inspikes = SpikeGeneratorGroup(2, [(0, 100*ms)])
-inconn6 = Connection(inspikes[0], neuron, state="g_exc_%i" % synlocs[1])
+inconn6 = Connection(inspikes[0], neuron, state="g_exc_%i" % synlocs[-1])
 inconn6.connect(inspikes, neuron, W=w_exc)
 
 print("Creating monitors ...")
