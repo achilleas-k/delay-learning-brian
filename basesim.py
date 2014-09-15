@@ -17,27 +17,28 @@ gij = 0.02 * usiemens  # WAT IS THIS - PUT IT SOMEWHERE
 diam = 2*um  # diameter
 radius = diam/2  # radius
 seg_area = pi*diam*seg_length  # segment surface area
-Ci = 1*uF  #ci*area  # membrane capacitance
+Ci = 6*uF  #ci*area  # membrane capacitance
+g_leak = 0.3*msiemens
 e_leak = -70*mV  # membrane leak potential
 rMi = 12*kohm*cm**2  # specific membrane resistance
 rL = 200*ohm*cm  # intracellular/longitudinal resistivity
 Ri = 12*kohm  #rMi/area  # membrane resistance
 Qi = seg_length/(pi*radius**2)  # axial resistance factor
 Rij = rL*Qi  # coupling resistance
-Rij = Ri
-g_pas = 0.00004*siemens/cm**2*seg_area  # passive channel conductance
+Rij = Ri/10
+g_pas = 0.00004*siemens  #/cm**2*seg_area  # passive channel conductance
 e_pas = -70*mV  # passive channel reversal potential
-g_Na = 35*msiemens/cm**2*seg_area  # sodium conductance
+g_Na = 35*msiemens  #/cm**2*seg_area  # sodium conductance
 e_Na = 55*mV  # sodium reversal potential
 g_K = 9*msiemens  # potassium conductance
 e_K = -90*mV  # potassium reversal potential
 e_exc = 0*mV  # excitatory reversal potential
 tau_exc = 15*ms  # excitatory conductance time constant
-w_exc = 80*uS  # excitatory weight (conductance change)
+w_exc = 1000*uS  # excitatory weight (conductance change)
 
 #print("Time constant =", Cm / gl)
 #print("Space constant =", .5 * (diam / (gl * Ri)) ** .5)
-print("Time constant = %s" % (Ri*Ci))
+print("Time constant = %s" % (Ci/g_leak))
 
 print("Setting up cable segments ...")
 somaseg = nseg-1
@@ -56,11 +57,11 @@ for i in range(nseg):
         K="K_%i" % i,
     )
     # leak channel
-    leak_channel_eqn = "leak = (e_leak-V)/Ri : amp"
+    leak_channel_eqn = "leak = g_leak*(e_leak-V) : amp"
     equations += Equations(leak_channel_eqn,
                            leak="leak_%i" % i,
                            V="V_%i" % i,
-                           Ri=Ri,
+                           g_leak=g_leak,
                            e_leak=e_leak)
     # passive channel
     passive_channel_eqn = "pas = g_pas*(e_pas-V) : amp"
@@ -165,10 +166,10 @@ equations += Equations("coupling = (V_pre-V_cur)/Rij : amp",
                        V_pre="V_%i" % (nseg-1),
                        V_cur="V_soma",
                        Rij=Rij)
-equations += Equations("leak = (e_leak-V)/Ri : amp",
+equations += Equations("leak = g_leak*(e_leak-V) : amp",
                        leak="leak_soma",
                        V="V_soma",
-                       Ri=Ri,
+                       g_leak=g_leak,
                        e_leak=e_leak)
 
 print("Setting up synapses ...")
@@ -179,9 +180,11 @@ for i in range(nseg):
     setattr(neuron, "V_%i" % i, e_leak)
 setattr(neuron, "V_soma", e_leak)
 print("Creating input spikes ...")
-inspikes = SpikeGeneratorGroup(2, [(0, 100*ms)])
-inconn6 = Connection(inspikes[0], neuron, state="g_exc_%i" % synlocs[-1])
-inconn6.connect(inspikes, neuron, W=w_exc)
+inspikes = SpikeGeneratorGroup(2, [(0, 5*ms), (1, 38*ms)])
+inconn_a2 = Connection(inspikes[0], neuron, state="g_exc_%i" % synlocs[1])
+inconn_a2.connect(inspikes, neuron, W=w_exc)
+inconn_b = Connection(inspikes[1], neuron, state="g_exc_%i" % synlocs[-1])
+inconn_b.connect(inspikes, neuron, W=w_exc)
 
 print("Creating monitors ...")
 trace = {}
