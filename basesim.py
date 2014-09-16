@@ -112,6 +112,12 @@ def calcium_t(seg, g, e):
                            )
     return equations
 
+def calcium_l(seg, g, e):
+    # l-type calcium (CaL)
+    # TODO: Adapt from calm95.mod (in neuron/delay_learning/channels/)
+    pass
+
+
 def potassium(seg, g, e):
     # potassium (K)
     potassium_channel_eqn = "K = g_K*n**4*(e_K-V) : amp"
