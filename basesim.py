@@ -4,12 +4,14 @@ from brian.compartments import *
 from brian.library.ionic_currents import *
 from brian.library.synapses import *
 
+# TODO: Remove all channels and figure out if there's something wrong with
+# calcium parameters or equations.
 # TODO: Conductances per area! Add "/cm**2" to channel conductances and set
 # channel current equation units to "amp/metre**2"
 # TODO: Pay attention to differences between dendritic compartments and soma
-# TODO: Major cleanup: Split code into functions, simplify adding of channels
-# (lots of repetition in channel code), make compartmentalisation easier to
-# specify in the future without all this mess
+# TODO: Major cleanup: Split code into functions or even files, simplify adding
+# of channels (lots of repetition in channel code), make compartmentalisation
+# easier to specify in the future without all this mess
 
 
 defaultclock.dt = dt = 0.1*ms
